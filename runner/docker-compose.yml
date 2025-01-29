@@ -1,0 +1,10 @@
+version: "3.4"
+
+services:
+  tgchat_history_saver:
+    image: insanusmokrassar/tgchat_history_saver
+    container_name: tgchat_history_saver
+    restart: unless-stopped
+    volumes:
+      - "/path/to/config.json:/config.json:ro"
+      - "/path/to/folder/:/local/"
