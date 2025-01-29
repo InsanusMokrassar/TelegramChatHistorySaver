@@ -122,7 +122,7 @@ class SimpleFolderSaverService (
     ): Boolean = mutex.withLock {
         val folder = getChatOrThreadFolderWithoutLock(chatId) ?: return false
         val messageFolder = File(folder, "${dateTime.format(dateTimeFormat)}_${messageId.long}")
-        if ((folder.exists() || folder.mkdirs()) && (messageFolder.exists() && messageFolder.mkdirs())) {
+        if ((folder.exists() || folder.mkdirs()) && (messageFolder.exists() || messageFolder.mkdirs())) {
             runCatching {
                 when (content) {
                     is TextedContent -> {
@@ -240,6 +240,9 @@ class SimpleFolderSaverService (
         mutex.withLock {
             val currentChatFile = getChatFolderWithoutLock(chatId, null)
             val newChatFile = File(currentChatFile.parentFile, "${title}_${chatId.chatId.long}")
+
+            if (newChatFile.absolutePath == currentChatFile.absolutePath) return@withLock // nothing to change
+
             runCatching {
                 newChatFile.mkdirs()
             }
@@ -275,7 +278,11 @@ class SimpleFolderSaverService (
     override suspend fun saveThreadTitle(chatId: ChatId, threadId: MessageThreadId, title: String) {
         mutex.withLock {
             val currentThreadFile = getThreadFolderWithoutLock(chatId, threadId, null)
-            val newThreadFile = File(currentThreadFile.parentFile, "${title}_${threadId.long}")
+            val chatFolder = getChatFolderWithoutLock(chatId, null)
+            val newThreadFile = File(chatFolder, "${title}_${threadId.long}")
+
+            if (newThreadFile.absolutePath == currentThreadFile.absolutePath) return@withLock // nothing to change
+
             runCatching {
                 newThreadFile.mkdirs()
             }

@@ -9,7 +9,8 @@
     "dev.inmo.tgchat_history_saver.replier.ReplierPlugin"
   ],
   "common": {
-    "ownerChatId": 123456789
+    "ownerChatId": 123456789,
+    "savingFolder": "./content_data.local/"
   },
   "replier": {
     "answer": "Sample"
