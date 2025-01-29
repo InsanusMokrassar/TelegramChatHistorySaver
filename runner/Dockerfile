@@ -1,5 +1,7 @@
 FROM bellsoft/liberica-openjdk-alpine:19
 
+RUN mkdir /folder/ && chown 1000:1000 /folder/
+
 USER 1000
 
 ENTRYPOINT ["/tgchat_history_saver.runner/bin/tgchat_history_saver.runner", "/config.json"]

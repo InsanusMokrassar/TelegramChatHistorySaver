@@ -16,4 +16,10 @@ data class CommonConfig(
             require((it.exists() && it.isDirectory) || it.mkdirs())
         }
     }
+
+    init {
+        val testFile = File(savingFolderFile, "test")
+        runCatching { testFile.delete() }
+        require(testFile.createNewFile()) { "Unable to write into saving folder" }
+    }
 }
