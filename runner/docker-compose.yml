@@ -7,4 +7,4 @@ services:
     restart: unless-stopped
     volumes:
       - "/path/to/config.json:/config.json:ro"
-      - "/path/to/folder/:/local/"
+      - "/path/to/folder/:/folder/"
