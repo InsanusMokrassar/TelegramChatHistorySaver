@@ -1,5 +1,7 @@
 package dev.inmo.tgchat_history_saver.common
 
+import dev.inmo.kslog.common.i
+import dev.inmo.kslog.common.logger
 import dev.inmo.micro_utils.fsm.common.State
 import dev.inmo.plagubot.Plugin
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContextWithFSM
@@ -18,6 +20,6 @@ object CommonPlugin : Plugin {
     }
     override suspend fun BehaviourContextWithFSM<State>.setupBotPlugin(koin: Koin) {
         val config = koin.get<CommonConfig>()
-        println(config.sample)
+        logger.i(config.ownerChatId)
     }
 }

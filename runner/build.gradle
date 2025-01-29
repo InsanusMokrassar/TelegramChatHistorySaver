@@ -10,6 +10,7 @@ dependencies {
     implementation libs.kotlin
     implementation libs.plagubot.bot
     implementation project(":tgchat_history_saver.common")
+    implementation project(":tgchat_history_saver.replier")
 }
 
 application {

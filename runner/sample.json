@@ -9,6 +9,9 @@
     "dev.inmo.tgchat_history_saver.replier.ReplierPlugin"
   ],
   "common": {
-    "sample": "ggwp"
+    "ownerChatId": 123456789
+  },
+  "replier": {
+    "answer": "Sample"
   }
 }
