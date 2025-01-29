@@ -2,6 +2,6 @@ FROM bellsoft/liberica-openjdk-alpine:19
 
 USER 1000
 
-ENTRYPOINT ["/project_name.runner/bin/project_name.runner", "/config.json"]
+ENTRYPOINT ["/tgchat_history_saver.runner/bin/tgchat_history_saver.runner", "/config.json"]
 
-ADD ./build/distributions/project_name.runner.tar /
+ADD ./build/distributions/tgchat_history_saver.runner.tar /

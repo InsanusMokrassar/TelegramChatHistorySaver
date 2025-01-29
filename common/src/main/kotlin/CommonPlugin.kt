@@ -1,4 +1,4 @@
-package project_group.project_name.common
+package dev.inmo.tgchat_history_saver.common
 
 import dev.inmo.micro_utils.fsm.common.State
 import dev.inmo.plagubot.Plugin
@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.common.models.CommonConfig
+import dev.inmo.tgchat_history_saver.common.models.CommonConfig
 
 object CommonPlugin : Plugin {
     override fun Module.setupDI(config: JsonObject) {

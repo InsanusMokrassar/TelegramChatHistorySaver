@@ -9,7 +9,7 @@ project.version = null
 dependencies {
     implementation libs.kotlin
     implementation libs.plagubot.bot
-    implementation project(":project_name.common")
+    implementation project(":tgchat_history_saver.common")
 }
 
 application {

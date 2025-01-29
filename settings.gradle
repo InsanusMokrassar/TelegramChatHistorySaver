@@ -1,4 +1,4 @@
-rootProject.name = 'project_name'
+rootProject.name = 'tgchat_history_saver'
 
 String[] includes = [
     ":runner",

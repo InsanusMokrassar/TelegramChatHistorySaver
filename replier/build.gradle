@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    api project(":project_name.common")
+    api project(":tgchat_history_saver.common")
 }
 
 ksp {

@@ -1,4 +1,4 @@
-package project_group.project_name.replier
+package dev.inmo.tgchat_history_saver.replier
 
 import dev.inmo.micro_utils.fsm.common.State
 import dev.inmo.plagubot.Plugin
@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.replier.models.ReplierConfig
+import dev.inmo.tgchat_history_saver.replier.models.ReplierConfig
 
 object ReplierPlugin : Plugin {
     override fun Module.setupDI(config: JsonObject) {

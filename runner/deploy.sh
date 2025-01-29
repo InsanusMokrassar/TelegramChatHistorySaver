@@ -13,7 +13,7 @@ function assert_success() {
     fi
 }
 
-app=project_name
+app=tgchat_history_saver
 version="`grep ../gradle.properties -e "^version=" | sed -e "s/version=\(.*\)/\1/"`"
 server=docker.io
 

@@ -1,4 +1,4 @@
-package project_group.project_name.common.models
+package dev.inmo.tgchat_history_saver.common.models
 
 import kotlinx.serialization.Serializable
 

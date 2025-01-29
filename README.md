@@ -1,4 +1,4 @@
-# project_name
+# tgchat_history_saver
 
 It is template for common project based on several technologies:
 
@@ -8,8 +8,8 @@ It is template for common project based on several technologies:
 
 ## Start work with template
 
-* Replace `project_group` in whole project by your project group
-* Replace `project_name` in whole project by your project name
+* Replace `dev.inmo` in whole project by your project group
+* Replace `tgchat_history_saver` in whole project by your project name
 
 ## Launching
 

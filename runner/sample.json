@@ -5,8 +5,8 @@
   "botToken": "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi",
   "plugins": [
     "dev.inmo.plagubot.plugins.commands.CommandsPlugin",
-    "project_group.project_name.common.CommonPlugin",
-    "project_group.project_name.replier.ReplierPlugin"
+    "dev.inmo.tgchat_history_saver.common.CommonPlugin",
+    "dev.inmo.tgchat_history_saver.replier.ReplierPlugin"
   ],
   "common": {
     "sample": "ggwp"
