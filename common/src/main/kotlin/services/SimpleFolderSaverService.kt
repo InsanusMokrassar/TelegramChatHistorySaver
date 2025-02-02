@@ -4,14 +4,18 @@ import dev.inmo.kslog.common.e
 import dev.inmo.kslog.common.logger
 import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.extensions.api.files.downloadFile
+import dev.inmo.tgbotapi.extensions.api.get.getFileAdditionalInfo
+import dev.inmo.tgbotapi.extensions.utils.textedMediaContentOrNull
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.ChatIdWithThreadId
 import dev.inmo.tgbotapi.types.IdChatIdentifier
+import dev.inmo.tgbotapi.types.MediaGroupId
 import dev.inmo.tgbotapi.types.MessageId
 import dev.inmo.tgbotapi.types.MessageThreadId
 import dev.inmo.tgbotapi.types.RawChatId
 import dev.inmo.tgbotapi.types.files.CustomNamedMediaFile
+import dev.inmo.tgbotapi.types.files.TelegramMediaFile
 import dev.inmo.tgbotapi.types.message.content.ContactContent
 import dev.inmo.tgbotapi.types.message.content.DiceContent
 import dev.inmo.tgbotapi.types.message.content.GameContent
@@ -20,16 +24,15 @@ import dev.inmo.tgbotapi.types.message.content.GiveawayPublicResultsContent
 import dev.inmo.tgbotapi.types.message.content.InvoiceContent
 import dev.inmo.tgbotapi.types.message.content.LiveLocationContent
 import dev.inmo.tgbotapi.types.message.content.MediaContent
+import dev.inmo.tgbotapi.types.message.content.MediaGroupContent
 import dev.inmo.tgbotapi.types.message.content.MessageContent
 import dev.inmo.tgbotapi.types.message.content.PaidMediaInfoContent
 import dev.inmo.tgbotapi.types.message.content.PollContent
 import dev.inmo.tgbotapi.types.message.content.StaticLocationContent
-import dev.inmo.tgbotapi.types.message.content.StickerContent
 import dev.inmo.tgbotapi.types.message.content.StoryContent
 import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.message.content.TextedContent
 import dev.inmo.tgbotapi.types.message.content.VenueContent
-import dev.inmo.tgbotapi.types.message.content.VideoNoteContent
 import dev.inmo.tgbotapi.types.toChatId
 import korlibs.time.DateFormat
 import korlibs.time.DateTime
@@ -118,13 +121,27 @@ class SimpleFolderSaverService (
         chatId: IdChatIdentifier,
         messageId: MessageId,
         dateTime: DateTime,
+        mediaGroupId: MediaGroupId?,
         content: MessageContent
     ): Boolean = mutex.withLock {
         val folder = getChatOrThreadFolderWithoutLock(chatId) ?: return false
-        val messageFolder = File(folder, "${dateTime.format(dateTimeFormat)}_${messageId.long}")
+        val folderIdentifier = mediaGroupId ?.string ?: messageId.long.toString()
+        val messageFolder = File(folder, "${dateTime.format(dateTimeFormat)}_${folderIdentifier}")
         if ((folder.exists() || folder.mkdirs()) && (messageFolder.exists() || messageFolder.mkdirs())) {
             runCatching {
                 when (content) {
+                    is MediaContent,
+                    is ContactContent,
+                    is DiceContent,
+                    is GameContent,
+                    is GiveawayContent,
+                    is GiveawayPublicResultsContent,
+                    is InvoiceContent,
+                    is LiveLocationContent,
+                    is StaticLocationContent,
+                    is PollContent,
+                    is StoryContent,
+                    is VenueContent -> { /* do nothing */ }
                     is TextedContent -> {
                         runCatching {
                             val text = content.text ?: return@runCatching
@@ -138,36 +155,23 @@ class SimpleFolderSaverService (
                             return@runCatching false
                         }
                     }
-                    is ContactContent,
-                    is DiceContent,
-                    is GameContent,
-                    is GiveawayContent,
-                    is GiveawayPublicResultsContent,
-                    is InvoiceContent,
-                    is LiveLocationContent,
-                    is StaticLocationContent,
-                    is PollContent,
-                    is StoryContent,
-                    is VenueContent,
-                    is StickerContent,
-                    is VideoNoteContent -> { /* do nothing */ }
                 }
-                when (content) {
+                val media: List<Triple<MessageId, TelegramMediaFile, String?>> = when (content) {
+                    is MediaGroupContent<*> -> content.group.map {
+                        Triple(
+                            it.messageId,
+                            it.content.media,
+                            (content.text)
+                        )
+                    }
                     is MediaContent -> {
-                        runCatching {
-                            val media = content.media
-                            val filename = if (media is CustomNamedMediaFile) {
-                                media.fileName ?: media.fileId.fileId
-                            } else {
-                                media.fileId.fileId
-                            }
-
-                            val mediaFile = File(messageFolder, filename)
-                            bot.downloadFile(media, mediaFile)
-                        }.onFailure {
-                            logger.e(it) { "Unable to save media in folder ${messageFolder.absolutePath}" }
-                            return@runCatching false
-                        }
+                        listOf(
+                            Triple(
+                                messageId,
+                                content.media,
+                                (content.textedMediaContentOrNull() ?.text)
+                            )
+                        )
                     }
                     is ContactContent,
                     is DiceContent,
@@ -181,7 +185,39 @@ class SimpleFolderSaverService (
                     is PollContent,
                     is StoryContent,
                     is TextContent,
-                    is VenueContent -> { /* do nothing */ }
+                    is VenueContent -> emptyList()
+                }
+                media.forEach { (messageId, media, text) ->
+                    runCatching {
+                        val filename = messageId.toString() + "_" + (if (media is CustomNamedMediaFile) {
+                            media.fileName ?: media.fileId.fileId
+                        } else {
+                            runCatching {
+                                bot.getFileAdditionalInfo(media).fileName
+                            }.getOrElse {
+                                media.fileId.fileId
+                            }
+                        })
+
+                        val mediaFile = File(messageFolder, filename)
+                        bot.downloadFile(media, mediaFile)
+                    }.onFailure {
+                        logger.e(it) { "Unable to save media in folder ${messageFolder.absolutePath}" }
+                        return@runCatching false
+                    }
+                    text ?.let {
+                        runCatching {
+                            val filename = messageId.toString() + "_" + "caption.txt"
+
+                            val textFile = File(messageFolder, filename)
+                            textFile.delete()
+                            textFile.createNewFile()
+                            textFile.writeText(text)
+                        }.onFailure {
+                            logger.e(it) { "Unable to save media in folder ${messageFolder.absolutePath}" }
+                            return@runCatching false
+                        }
+                    }
                 }
                 val specialDataFileName = when (content) {
                     is MediaContent,

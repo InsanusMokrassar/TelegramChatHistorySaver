@@ -10,6 +10,8 @@ import dev.inmo.tgbotapi.extensions.api.send.reply
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContextWithFSM
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onContentMessage
+import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onEditedContentMessage
+import dev.inmo.tgbotapi.extensions.utils.asMediaGroupMessage
 import dev.inmo.tgbotapi.extensions.utils.chatEventMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.extensions.raw.from
 import dev.inmo.tgbotapi.extensions.utils.forumContentMessageOrNull
@@ -113,7 +115,29 @@ object CommonPlugin : Plugin {
                     }
                 }
             }
-            saverService.save(it.chat.id, it.messageId, it.date, it.content)
+            saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
+        }
+        onEditedContentMessage(initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() }) {
+            val chatId = it.chat.id
+            val topicInfo = it.replyInfo ?.internalOrNull() ?.message ?.chatEventMessageOrNull() ?.chatEvent ?.forumTopicCreatedOrNull()
+            val title = when (val chat = it.chat) {
+                is PublicChat -> chat.title
+                is PrivateChat -> "${chat.lastName} ${chat.firstName}"
+                is BusinessChatImpl,
+                is UnknownChatType -> return@onEditedContentMessage
+            }
+
+            saverService.saveChatTitle(chatId, title)
+            when (chatId) {
+                is BusinessChatId -> return@onEditedContentMessage
+                is ChatId -> { /* do nothing */ }
+                is ChatIdWithThreadId -> {
+                    topicInfo ?.let {
+                        saverService.saveThreadTitle(chatId.toChatId(), chatId.threadId, it.name)
+                    }
+                }
+            }
+            saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
         }
     }
 }
