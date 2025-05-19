@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     api libs.kotlin
+    api libs.exposed
     api libs.microutils.koin
     api libs.plagubot.plugin
     api libs.plagubot.plugins.commands

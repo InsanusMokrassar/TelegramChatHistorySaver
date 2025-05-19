@@ -1,4 +1,4 @@
-FROM bellsoft/liberica-openjdk-alpine:19
+FROM amazoncorretto:21
 
 RUN mkdir /folder/ && chown 1000:1000 /folder/
 

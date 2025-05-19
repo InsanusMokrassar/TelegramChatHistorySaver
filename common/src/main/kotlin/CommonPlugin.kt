@@ -69,6 +69,11 @@ object CommonPlugin : Plugin {
                 BotCommandScope.AllGroupChats
             )
         }
+        singleWithRandomQualifier {
+            BotCommand("force_resave", "Force resave replied message").full(
+                BotCommandScope.AllGroupChats
+            )
+        }
     }
     override suspend fun BehaviourContextWithFSM<State>.setupBotPlugin(koin: Koin) {
         val config = koin.get<CommonConfig>()
@@ -146,7 +151,7 @@ object CommonPlugin : Plugin {
             val messageInReply = it.replyTo
             when {
                 messageInReply == null -> reply(it, "Reply some message to force its saving")
-                messageInReply.chat.id !in trackingRepo.getTrackingChats() -> reply(it, "Chat is not tracked")
+                messageInReply.chat.id.toChatId() !in trackingRepo.getTrackingChats() -> reply(it, "Chat is not tracked")
                 messageInReply !is CommonMessage<*> -> reply(it, "Reply on message with content")
                 else -> {
                     saverService.save(
