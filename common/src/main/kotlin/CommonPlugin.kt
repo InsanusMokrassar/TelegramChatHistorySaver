@@ -26,6 +26,8 @@ import dev.inmo.tgbotapi.types.chat.PrivateChat
 import dev.inmo.tgbotapi.types.chat.PublicChat
 import dev.inmo.tgbotapi.types.chat.UnknownChatType
 import dev.inmo.tgbotapi.types.commands.BotCommandScope
+import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
+import dev.inmo.tgbotapi.types.message.abstracts.ContentMessage
 import dev.inmo.tgbotapi.types.toChatId
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -138,6 +140,24 @@ object CommonPlugin : Plugin {
                 }
             }
             saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
+        }
+
+        onCommand("force_resave", initialFilter = { it.from ?.id == config.ownerChatId }) {
+            val messageInReply = it.replyTo
+            when {
+                messageInReply == null -> reply(it, "Reply some message to force its saving")
+                messageInReply.chat.id !in trackingRepo.getTrackingChats() -> reply(it, "Chat is not tracked")
+                messageInReply !is CommonMessage<*> -> reply(it, "Reply on message with content")
+                else -> {
+                    saverService.save(
+                        messageInReply.chat.id,
+                        messageInReply.messageId,
+                        messageInReply.date,
+                        messageInReply.mediaGroupId,
+                        messageInReply.content
+                    )
+                }
+            }
         }
     }
 }
