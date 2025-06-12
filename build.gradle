@@ -16,10 +16,10 @@ buildscript {
 
 allprojects {
     repositories {
-        mavenLocal()
         mavenCentral()
         google()
         maven { url "https://nexus.inmo.dev/repository/maven-releases/" }
+        mavenLocal()
     }
 }
 
