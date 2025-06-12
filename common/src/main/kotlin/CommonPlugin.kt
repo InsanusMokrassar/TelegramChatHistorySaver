@@ -16,6 +16,7 @@ import dev.inmo.tgbotapi.extensions.utils.chatEventMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.extensions.raw.from
 import dev.inmo.tgbotapi.extensions.utils.forumContentMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.forumTopicCreatedOrNull
+import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.internalOrNull
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.BusinessChatId
@@ -147,7 +148,7 @@ object CommonPlugin : Plugin {
             saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
         }
 
-        onCommand("force_resave", initialFilter = { it.from ?.id == config.ownerChatId }) {
+        onCommand("force_resave", initialFilter = { it.fromUserMessageOrNull() ?.from ?.id ?.toChatId() == config.ownerChatId }) {
             val messageInReply = it.replyTo
             when {
                 messageInReply == null -> reply(it, "Reply some message to force its saving")
