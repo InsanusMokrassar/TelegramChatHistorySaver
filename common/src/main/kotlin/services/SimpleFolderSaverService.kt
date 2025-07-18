@@ -2,9 +2,12 @@ package dev.inmo.tgchat_history_saver.common.services
 
 import dev.inmo.kslog.common.e
 import dev.inmo.kslog.common.logger
+import dev.inmo.micro_utils.common.alsoIfTrue
+import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.extensions.api.files.downloadFile
 import dev.inmo.tgbotapi.extensions.api.get.getFileAdditionalInfo
+import dev.inmo.tgbotapi.extensions.api.send.setMessageReaction
 import dev.inmo.tgbotapi.extensions.utils.textedMediaContentOrNull
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId

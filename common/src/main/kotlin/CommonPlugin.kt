@@ -2,11 +2,13 @@ package dev.inmo.tgchat_history_saver.common
 
 import dev.inmo.kslog.common.i
 import dev.inmo.kslog.common.logger
+import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.fsm.common.State
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.plagubot.Plugin
 import dev.inmo.plagubot.plugins.commands.full
 import dev.inmo.tgbotapi.extensions.api.send.reply
+import dev.inmo.tgbotapi.extensions.api.send.setMessageReaction
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContextWithFSM
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onContentMessage
@@ -104,6 +106,9 @@ object CommonPlugin : Plugin {
         }
 
         onContentMessage(initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() }) {
+            runCatchingLogging {
+                bot.setMessageReaction(it, "\uD83D\uDD04")
+            }
             val chatId = it.chat.id
             val topicInfo = it.replyInfo ?.internalOrNull() ?.message ?.chatEventMessageOrNull() ?.chatEvent ?.forumTopicCreatedOrNull()
             val title = when (val chat = it.chat) {
@@ -123,9 +128,23 @@ object CommonPlugin : Plugin {
                     }
                 }
             }
-            saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
+            val saved = saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
+
+            runCatchingLogging {
+                bot.setMessageReaction(
+                    message = it,
+                    emoji = if (saved) {
+                        "✅"
+                    } else {
+                        "❌"
+                    }
+                )
+            }
         }
         onEditedContentMessage(initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() }) {
+            runCatchingLogging {
+                bot.setMessageReaction(it, "\uD83D\uDD04")
+            }
             val chatId = it.chat.id
             val topicInfo = it.replyInfo ?.internalOrNull() ?.message ?.chatEventMessageOrNull() ?.chatEvent ?.forumTopicCreatedOrNull()
             val title = when (val chat = it.chat) {
@@ -145,7 +164,18 @@ object CommonPlugin : Plugin {
                     }
                 }
             }
-            saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
+            val saved = saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
+
+            runCatchingLogging {
+                bot.setMessageReaction(
+                    message = it,
+                    emoji = if (saved) {
+                        "✅"
+                    } else {
+                        "❌"
+                    }
+                )
+            }
         }
 
         onCommand("force_resave", initialFilter = { it.fromUserMessageOrNull() ?.from ?.id ?.toChatId() == config.ownerChatId }) {
@@ -155,13 +185,26 @@ object CommonPlugin : Plugin {
                 messageInReply.chat.id.toChatId() !in trackingRepo.getTrackingChats() -> reply(it, "Chat is not tracked")
                 messageInReply !is CommonMessage<*> -> reply(it, "Reply on message with content")
                 else -> {
-                    saverService.save(
+                    runCatchingLogging {
+                        bot.setMessageReaction(messageInReply, "\uD83D\uDD04")
+                    }
+                    val saved = saverService.save(
                         messageInReply.chat.id,
                         messageInReply.messageId,
                         messageInReply.date,
                         messageInReply.mediaGroupId,
                         messageInReply.content
                     )
+                    runCatchingLogging {
+                        bot.setMessageReaction(
+                            message = messageInReply,
+                            emoji = if (saved) {
+                                "✅"
+                            } else {
+                                "❌"
+                            }
+                        )
+                    }
                 }
             }
         }
