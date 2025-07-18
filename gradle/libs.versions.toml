@@ -3,15 +3,9 @@
 kotlin = "2.1.20"
 kotlin-serialization = "1.8.1"
 
-<<<<<<< Updated upstream
 exposed = "0.61.0"
-
-plagubot = "10.4.0"
-plagubot-plugins = "0.24.3"
-=======
 plagubot = "10.6.0"
 plagubot-plugins = "0.24.4"
->>>>>>> Stashed changes
 
 dokka = "2.0.0"
 
