@@ -1,4 +1,4 @@
-FROM amazoncorretto:21
+FROM eclipse-temurin:21
 
 RUN mkdir /folder/ && chown 1000:1000 /folder/
 

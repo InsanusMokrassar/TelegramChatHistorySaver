@@ -10,7 +10,10 @@ import dev.inmo.micro_utils.repos.exposed.keyvalue.ExposedKeyValueRepo
 import dev.inmo.micro_utils.repos.mappers.withMapper
 import dev.inmo.plagubot.Plugin
 import dev.inmo.plagubot.plugins.commands.full
+import dev.inmo.tgbotapi.extensions.api.chat.forum.createForumTopic
+import dev.inmo.tgbotapi.extensions.api.delete
 import dev.inmo.tgbotapi.extensions.api.send.reply
+import dev.inmo.tgbotapi.extensions.api.send.send
 import dev.inmo.tgbotapi.extensions.api.send.setMessageReaction
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContextWithFSM
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
@@ -28,7 +31,9 @@ import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.ChatIdWithThreadId
+import dev.inmo.tgbotapi.types.MessageId
 import dev.inmo.tgbotapi.types.RawChatId
+import dev.inmo.tgbotapi.types.ReplyParameters
 import dev.inmo.tgbotapi.types.chat.BusinessChatImpl
 import dev.inmo.tgbotapi.types.chat.PrivateChat
 import dev.inmo.tgbotapi.types.chat.PublicChat
@@ -37,7 +42,9 @@ import dev.inmo.tgbotapi.types.commands.BotCommandScope
 import dev.inmo.tgbotapi.types.message.abstracts.AccessibleMessage
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
 import dev.inmo.tgbotapi.types.message.abstracts.Message
+import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.toChatId
+import dev.inmo.tgbotapi.utils.RGBColor
 import dev.inmo.tgchat_history_saver.common.models.ChatReactions
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -52,6 +59,7 @@ import dev.inmo.tgchat_history_saver.common.repo.KeyValueBasedChatsReactionsRepo
 import dev.inmo.tgchat_history_saver.common.repo.TrackingChatsRepo
 import dev.inmo.tgchat_history_saver.common.services.SaverService
 import dev.inmo.tgchat_history_saver.common.services.SimpleFolderSaverService
+import kotlinx.coroutines.delay
 
 object CommonPlugin : Plugin {
     override fun Module.setupDI(config: JsonObject) {
@@ -99,6 +107,11 @@ object CommonPlugin : Plugin {
         }
         singleWithRandomQualifier {
             BotCommand("force_resave", "Force resave replied message").full(
+                BotCommandScope.AllGroupChats
+            )
+        }
+        singleWithRandomQualifier {
+            BotCommand("force_full_resave", "Force full resave of all messages").full(
                 BotCommandScope.AllGroupChats
             )
         }
@@ -223,6 +236,49 @@ object CommonPlugin : Plugin {
                     }
                 }
             }
+        }
+
+        onCommand("force_full_resave", initialFilter = { it.fromUserMessageOrNull() ?.from ?.id ?.toChatId() == config.ownerChatId }) {
+            val topic = createForumTopic(
+                it.chat,
+                "Cache",
+                RGBColor(0x00FF00)
+            )
+            for (i in 1L until it.messageId.long) {
+                runCatchingLogging {
+                    val sent = send(
+                        it.chat.id,
+                        "Cache",
+                        threadId = topic.messageThreadId,
+                        disableNotification = true,
+                        replyParameters = ReplyParameters(
+                            chatIdentifier = it.chat.id,
+                            messageId = MessageId(i),
+                            allowSendingWithoutReply = false
+                        )
+                    )
+                    runCatchingLogging {
+                        val messageInReply = (sent as? CommonMessage<TextContent>) ?.replyTo
+                        when {
+                            messageInReply == null || messageInReply !is CommonMessage<*> -> {}
+                            else -> {
+                                withReactions(messageInReply) {
+                                    saverService.save(
+                                        messageInReply.chat.id,
+                                        messageInReply.messageId,
+                                        messageInReply.date,
+                                        messageInReply.mediaGroupId,
+                                        messageInReply.content
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    delete(sent)
+                    delay(1000L)
+                }
+            }
+
         }
     }
 }

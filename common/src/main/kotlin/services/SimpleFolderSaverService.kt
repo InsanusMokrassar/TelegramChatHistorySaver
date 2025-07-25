@@ -1,13 +1,14 @@
 package dev.inmo.tgchat_history_saver.common.services
 
+import dev.inmo.kslog.common.KSLog
 import dev.inmo.kslog.common.e
 import dev.inmo.kslog.common.logger
-import dev.inmo.micro_utils.common.alsoIfTrue
+import dev.inmo.kslog.common.wtf
+import dev.inmo.micro_utils.common.filesize
 import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.tgbotapi.bot.TelegramBot
-import dev.inmo.tgbotapi.extensions.api.files.downloadFile
+import dev.inmo.tgbotapi.extensions.api.files.downloadFileStream
 import dev.inmo.tgbotapi.extensions.api.get.getFileAdditionalInfo
-import dev.inmo.tgbotapi.extensions.api.send.setMessageReaction
 import dev.inmo.tgbotapi.extensions.utils.textedMediaContentOrNull
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
@@ -37,10 +38,13 @@ import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.message.content.TextedContent
 import dev.inmo.tgbotapi.types.message.content.VenueContent
 import dev.inmo.tgbotapi.types.toChatId
+import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import io.ktor.utils.io.readBuffer
 import korlibs.time.DateFormat
 import korlibs.time.DateTime
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.io.asSink
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -53,6 +57,7 @@ class SimpleFolderSaverService (
         prettyPrint = true
         prettyPrintIndent = "    "
     }
+    private val Log = KSLog("SimpleFolderSaverService")
     private val dateTimeFormat = DateFormat("dd.MM.yyyy,HH.mm.ss")
     private val mutex = Mutex()
 
@@ -131,7 +136,7 @@ class SimpleFolderSaverService (
         val folderIdentifier = mediaGroupId ?.string ?: messageId.long.toString()
         val messageFolder = File(folder, "${dateTime.format(dateTimeFormat)}_${folderIdentifier}")
         if ((folder.exists() || folder.mkdirs()) && (messageFolder.exists() || messageFolder.mkdirs())) {
-            runCatching {
+            runCatchingLogging {
                 when (content) {
                     is MediaContent,
                     is ContactContent,
@@ -155,7 +160,7 @@ class SimpleFolderSaverService (
                             textFile.writeText(text)
                         }.onFailure {
                             logger.e(it) { "Unable to save text in folder ${messageFolder.absolutePath}" }
-                            return@runCatching false
+                            return@runCatchingLogging false
                         }
                     }
                 }
@@ -191,11 +196,11 @@ class SimpleFolderSaverService (
                     is VenueContent -> emptyList()
                 }
                 media.forEach { (messageId, media, text) ->
-                    runCatching {
+                    runCatchingLogging {
                         val filename = messageId.toString() + "_" + (if (media is CustomNamedMediaFile) {
                             media.fileName ?: media.fileId.fileId
                         } else {
-                            runCatching {
+                            runCatchingLogging {
                                 bot.getFileAdditionalInfo(media).fileName
                             }.getOrElse {
                                 media.fileId.fileId
@@ -203,13 +208,25 @@ class SimpleFolderSaverService (
                         })
 
                         val mediaFile = File(messageFolder, filename)
-                        bot.downloadFile(media, mediaFile)
+                        runCatchingLogging {
+                            Log.wtf("Start downloading of ${media.fileId}")
+                            mediaFile.outputStream().use {
+                                val fileInfo = bot.getFileAdditionalInfo(media.fileId)
+                                val downloadStream = if (fileInfo.filePath.startsWith("/")) { // if local
+                                    File(fileInfo.filePath).inputStream().toByteReadChannel()
+                                } else {
+                                    bot.downloadFileStream(fileInfo)
+                                }
+                                downloadStream.readBuffer().transferTo(it.asSink())
+                            }
+                            Log.wtf("Successfully downloaded ${media.fileId} to ${mediaFile.canonicalPath}. File size: ${mediaFile.filesize}")
+                        }.getOrThrow()
                     }.onFailure {
                         logger.e(it) { "Unable to save media in folder ${messageFolder.absolutePath}" }
-                        return@runCatching false
+                        return@runCatchingLogging false
                     }
                     text ?.let {
-                        runCatching {
+                        runCatchingLogging {
                             val filename = messageId.toString() + "_" + "caption.txt"
 
                             val textFile = File(messageFolder, filename)
@@ -218,7 +235,7 @@ class SimpleFolderSaverService (
                             textFile.writeText(text)
                         }.onFailure {
                             logger.e(it) { "Unable to save media in folder ${messageFolder.absolutePath}" }
-                            return@runCatching false
+                            return@runCatchingLogging false
                         }
                     }
                 }
@@ -238,7 +255,7 @@ class SimpleFolderSaverService (
                     is VenueContent -> "special.venue"
                 }
                 if (specialDataFileName != null) {
-                    runCatching {
+                    runCatchingLogging {
                         val specialFile = File(messageFolder, specialDataFileName)
                         val stringifiedContent = when (content) {
                             is ContactContent -> internalJson.encodeToString(ContactContent.serializer(), content)
@@ -260,7 +277,7 @@ class SimpleFolderSaverService (
                         specialFile.writeText(stringifiedContent)
                     }.onFailure {
                         logger.e(it) { "Unable to save media in folder ${messageFolder.absolutePath}" }
-                        return@runCatching false
+                        return@runCatchingLogging false
                     }
                 }
 
