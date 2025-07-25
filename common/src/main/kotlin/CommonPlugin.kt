@@ -5,6 +5,9 @@ import dev.inmo.kslog.common.logger
 import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.fsm.common.State
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
+import dev.inmo.micro_utils.repos.cache.full.fullyCached
+import dev.inmo.micro_utils.repos.exposed.keyvalue.ExposedKeyValueRepo
+import dev.inmo.micro_utils.repos.mappers.withMapper
 import dev.inmo.plagubot.Plugin
 import dev.inmo.plagubot.plugins.commands.full
 import dev.inmo.tgbotapi.extensions.api.send.reply
@@ -13,25 +16,29 @@ import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContextWithFSM
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onContentMessage
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onEditedContentMessage
-import dev.inmo.tgbotapi.extensions.utils.asMediaGroupMessage
+import dev.inmo.tgbotapi.extensions.utils.asTextedInput
 import dev.inmo.tgbotapi.extensions.utils.chatEventMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.extensions.raw.from
-import dev.inmo.tgbotapi.extensions.utils.forumContentMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.forumTopicCreatedOrNull
 import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.internalOrNull
+import dev.inmo.tgbotapi.extensions.utils.updates.hasCommands
+import dev.inmo.tgbotapi.extensions.utils.updates.hasNoCommands
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.ChatIdWithThreadId
+import dev.inmo.tgbotapi.types.RawChatId
 import dev.inmo.tgbotapi.types.chat.BusinessChatImpl
 import dev.inmo.tgbotapi.types.chat.PrivateChat
 import dev.inmo.tgbotapi.types.chat.PublicChat
 import dev.inmo.tgbotapi.types.chat.UnknownChatType
 import dev.inmo.tgbotapi.types.commands.BotCommandScope
+import dev.inmo.tgbotapi.types.message.abstracts.AccessibleMessage
 import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
-import dev.inmo.tgbotapi.types.message.abstracts.ContentMessage
+import dev.inmo.tgbotapi.types.message.abstracts.Message
 import dev.inmo.tgbotapi.types.toChatId
+import dev.inmo.tgchat_history_saver.common.models.ChatReactions
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -39,7 +46,9 @@ import org.koin.core.Koin
 import org.koin.core.module.Module
 import dev.inmo.tgchat_history_saver.common.models.CommonConfig
 import dev.inmo.tgchat_history_saver.common.repo.CacheTrackingChatsRepo
+import dev.inmo.tgchat_history_saver.common.repo.ChatsReactionsRepo
 import dev.inmo.tgchat_history_saver.common.repo.ExposedTrackingChatsRepo
+import dev.inmo.tgchat_history_saver.common.repo.KeyValueBasedChatsReactionsRepo
 import dev.inmo.tgchat_history_saver.common.repo.TrackingChatsRepo
 import dev.inmo.tgchat_history_saver.common.services.SaverService
 import dev.inmo.tgchat_history_saver.common.services.SimpleFolderSaverService
@@ -59,6 +68,22 @@ object CommonPlugin : Plugin {
                 folder = get<CommonConfig>().savingFolderFile,
                 bot = get(),
                 json = get()
+            )
+        }
+
+        single<ChatsReactionsRepo> {
+            val json = get<Json>()
+            KeyValueBasedChatsReactionsRepo(
+                ExposedKeyValueRepo(
+                    get(),
+                    { long("chat_id") },
+                    { text("chat_reactions") }
+                ).withMapper<ChatId, ChatReactions, Long, String>(
+                    { this.chatId.long },
+                    { json.encodeToString(ChatReactions.serializer(), this) },
+                    { ChatId(RawChatId(this)) },
+                    { json.decodeFromString(ChatReactions.serializer(), this) },
+                ).fullyCached()
             )
         }
 
@@ -82,6 +107,28 @@ object CommonPlugin : Plugin {
         val config = koin.get<CommonConfig>()
         val trackingRepo = koin.get<TrackingChatsRepo>()
         val saverService = koin.get<SaverService>()
+
+
+        val chatsReactionsRepo = koin.get<ChatsReactionsRepo>()
+        suspend fun getSavingReaction(id: ChatId) = (chatsReactionsRepo.get(id) ?: ChatReactions.DEFAULT).savingReaction
+        suspend fun getSavedReaction(id: ChatId) = (chatsReactionsRepo.get(id) ?: ChatReactions.DEFAULT).savedReaction
+        suspend fun getSaveErrorReaction(id: ChatId) = (chatsReactionsRepo.get(id) ?: ChatReactions.DEFAULT).saveErrorReaction
+        suspend fun setSavingReaction(message: AccessibleMessage) = runCatchingLogging { setMessageReaction(message, getSavingReaction(message.chat.id.toChatId())) }
+        suspend fun setSavedReaction(message: AccessibleMessage) = runCatchingLogging { setMessageReaction(message, getSavedReaction(message.chat.id.toChatId())) }
+        suspend fun setSaveErrorReaction(message: AccessibleMessage) = runCatchingLogging { setMessageReaction(message, getSaveErrorReaction(message.chat.id.toChatId())) }
+        suspend fun withReactions(message: AccessibleMessage, block: suspend () -> Boolean?) {
+            setSavingReaction(message)
+            val success = runCatchingLogging {
+                block()
+            }.getOrElse { false }
+
+            when (success) {
+                true -> setSavedReaction(message)
+                false -> setSaveErrorReaction(message)
+                null -> runCatchingLogging { setMessageReaction(message) }
+            }
+        }
+
         logger.i(config.ownerChatId)
 
         onCommand("enable_chat_tracking", initialFilter = { it.from ?.id == config.ownerChatId }) {
@@ -105,76 +152,56 @@ object CommonPlugin : Plugin {
             }
         }
 
-        onContentMessage(initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() }) {
-            runCatchingLogging {
-                bot.setMessageReaction(it, "\uD83D\uDD04")
-            }
-            val chatId = it.chat.id
-            val topicInfo = it.replyInfo ?.internalOrNull() ?.message ?.chatEventMessageOrNull() ?.chatEvent ?.forumTopicCreatedOrNull()
-            val title = when (val chat = it.chat) {
-                is PublicChat -> chat.title
-                is PrivateChat -> "${chat.lastName} ${chat.firstName}"
-                is BusinessChatImpl,
-                is UnknownChatType -> return@onContentMessage
-            }
+        onContentMessage(initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() && it.content.asTextedInput() ?.text ?.startsWith("/") != true }) {
+            withReactions(it) {
+                val chatId = it.chat.id
+                val topicInfo = it.replyInfo ?.internalOrNull() ?.message ?.chatEventMessageOrNull() ?.chatEvent ?.forumTopicCreatedOrNull()
+                val title = when (val chat = it.chat) {
+                    is PublicChat -> chat.title
+                    is PrivateChat -> "${chat.lastName} ${chat.firstName}"
+                    is BusinessChatImpl,
+                    is UnknownChatType -> return@withReactions null
+                }
 
-            saverService.saveChatTitle(chatId, title)
-            when (chatId) {
-                is BusinessChatId -> return@onContentMessage
-                is ChatId -> { /* do nothing */ }
-                is ChatIdWithThreadId -> {
-                    topicInfo ?.let {
-                        saverService.saveThreadTitle(chatId.toChatId(), chatId.threadId, it.name)
+                saverService.saveChatTitle(chatId, title)
+                when (chatId) {
+                    is BusinessChatId -> return@withReactions null
+                    is ChatId -> { /* do nothing */ }
+                    is ChatIdWithThreadId -> {
+                        topicInfo ?.let {
+                            saverService.saveThreadTitle(chatId.toChatId(), chatId.threadId, it.name)
+                        }
                     }
                 }
-            }
-            val saved = saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
-
-            runCatchingLogging {
-                bot.setMessageReaction(
-                    message = it,
-                    emoji = if (saved) {
-                        "✅"
-                    } else {
-                        "❌"
-                    }
-                )
+                saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
             }
         }
-        onEditedContentMessage(initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() }) {
-            runCatchingLogging {
-                bot.setMessageReaction(it, "\uD83D\uDD04")
-            }
-            val chatId = it.chat.id
-            val topicInfo = it.replyInfo ?.internalOrNull() ?.message ?.chatEventMessageOrNull() ?.chatEvent ?.forumTopicCreatedOrNull()
-            val title = when (val chat = it.chat) {
-                is PublicChat -> chat.title
-                is PrivateChat -> "${chat.lastName} ${chat.firstName}"
-                is BusinessChatImpl,
-                is UnknownChatType -> return@onEditedContentMessage
-            }
+        onEditedContentMessage(initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() && it.content.asTextedInput() ?.text ?.startsWith("/") != true }) {
+            withReactions(it) {
 
-            saverService.saveChatTitle(chatId, title)
-            when (chatId) {
-                is BusinessChatId -> return@onEditedContentMessage
-                is ChatId -> { /* do nothing */ }
-                is ChatIdWithThreadId -> {
-                    topicInfo ?.let {
-                        saverService.saveThreadTitle(chatId.toChatId(), chatId.threadId, it.name)
+                val chatId = it.chat.id
+                val topicInfo =
+                    it.replyInfo?.internalOrNull()?.message?.chatEventMessageOrNull()?.chatEvent?.forumTopicCreatedOrNull()
+                val title = when (val chat = it.chat) {
+                    is PublicChat -> chat.title
+                    is PrivateChat -> "${chat.lastName} ${chat.firstName}"
+                    is BusinessChatImpl,
+                    is UnknownChatType -> return@withReactions null
+                }
+
+                saverService.saveChatTitle(chatId, title)
+                when (chatId) {
+                    is BusinessChatId -> return@withReactions null
+                    is ChatId -> { /* do nothing */
+                    }
+
+                    is ChatIdWithThreadId -> {
+                        topicInfo?.let {
+                            saverService.saveThreadTitle(chatId.toChatId(), chatId.threadId, it.name)
+                        }
                     }
                 }
-            }
-            val saved = saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
-
-            runCatchingLogging {
-                bot.setMessageReaction(
-                    message = it,
-                    emoji = if (saved) {
-                        "✅"
-                    } else {
-                        "❌"
-                    }
-                )
+                saverService.save(it.chat.id, it.messageId, it.date, it.mediaGroupId, it.content)
             }
         }
 
@@ -185,24 +212,13 @@ object CommonPlugin : Plugin {
                 messageInReply.chat.id.toChatId() !in trackingRepo.getTrackingChats() -> reply(it, "Chat is not tracked")
                 messageInReply !is CommonMessage<*> -> reply(it, "Reply on message with content")
                 else -> {
-                    runCatchingLogging {
-                        bot.setMessageReaction(messageInReply, "\uD83D\uDD04")
-                    }
-                    val saved = saverService.save(
-                        messageInReply.chat.id,
-                        messageInReply.messageId,
-                        messageInReply.date,
-                        messageInReply.mediaGroupId,
-                        messageInReply.content
-                    )
-                    runCatchingLogging {
-                        bot.setMessageReaction(
-                            message = messageInReply,
-                            emoji = if (saved) {
-                                "✅"
-                            } else {
-                                "❌"
-                            }
+                    withReactions(messageInReply) {
+                        saverService.save(
+                            messageInReply.chat.id,
+                            messageInReply.messageId,
+                            messageInReply.date,
+                            messageInReply.mediaGroupId,
+                            messageInReply.content
                         )
                     }
                 }
