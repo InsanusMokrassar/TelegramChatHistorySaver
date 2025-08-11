@@ -4,6 +4,7 @@ String[] includes = [
     ":runner",
     ":common",
     ":replier",
+    ":reminder",
 ]
 
 
