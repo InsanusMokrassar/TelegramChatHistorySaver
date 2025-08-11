@@ -8,6 +8,7 @@ import java.io.File
 @Serializable
 data class CommonConfig(
     val ownerChatId: IdChatIdentifier,
+    val cachingChatId: IdChatIdentifier,
     val savingFolder: String
 ) {
     @Transient

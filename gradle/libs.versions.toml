@@ -11,7 +11,9 @@ dokka = "2.0.0"
 
 ksp = "2.2.0-2.0.2"
 
+krontab = "2.7.2"
 microutils = "0.26.2"
+tgbotapi-libraries = "0.26.7"
 
 dexcount = "4.0.0"
 junit_version = "4.12"
@@ -38,6 +40,9 @@ microutils-repos-generator = { module = "dev.inmo:micro_utils.repos.generator", 
 microutils-repos-exposed = { module = "dev.inmo:micro_utils.repos.exposed", version.ref = "microutils" }
 microutils-repos-cache = { module = "dev.inmo:micro_utils.repos.cache", version.ref = "microutils" }
 
+krontab = { module = "dev.inmo:krontab", version.ref = "krontab" }
+
+tgbotapi-libraries-resender = { module = "dev.inmo:tgbotapi.libraries.resender", version.ref = "tgbotapi-libraries" }
 plagubot-plugin = { module = "dev.inmo:plagubot.plugin", version.ref = "plagubot" }
 plagubot-bot = { module = "dev.inmo:plagubot.bot", version.ref = "plagubot" }
 plagubot-plugins-commands = { module = "dev.inmo:plagubot.plugins.commands", version.ref = "plagubot-plugins" }

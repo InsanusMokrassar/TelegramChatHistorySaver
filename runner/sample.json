@@ -11,6 +11,7 @@
   ],
   "common": {
     "ownerChatId": 123456789,
+    "cachingChatId": 123456789,
     "savingFolder": "./content_data.local/"
   },
   "replier": {

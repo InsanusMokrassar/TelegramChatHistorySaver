@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     api project(":tgchat_history_saver.common")
+    api libs.krontab
 }
 
 ksp {

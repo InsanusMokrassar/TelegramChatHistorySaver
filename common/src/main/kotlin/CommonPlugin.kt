@@ -27,6 +27,7 @@ import dev.inmo.tgbotapi.extensions.utils.fromUserMessageOrNull
 import dev.inmo.tgbotapi.extensions.utils.internalOrNull
 import dev.inmo.tgbotapi.extensions.utils.updates.hasCommands
 import dev.inmo.tgbotapi.extensions.utils.updates.hasNoCommands
+import dev.inmo.tgbotapi.libraries.resender.MessagesResender
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
@@ -114,6 +115,10 @@ object CommonPlugin : Plugin {
             BotCommand("force_full_resave", "Force full resave of all messages").full(
                 BotCommandScope.AllGroupChats
             )
+        }
+
+        single {
+            MessagesResender(get(), get<CommonConfig>().cachingChatId)
         }
     }
     override suspend fun BehaviourContextWithFSM<State>.setupBotPlugin(koin: Koin) {
