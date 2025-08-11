@@ -6,7 +6,8 @@
   "plugins": [
     "dev.inmo.plagubot.plugins.commands.CommandsPlugin",
     "dev.inmo.tgchat_history_saver.common.CommonPlugin",
-    "dev.inmo.tgchat_history_saver.replier.ReplierPlugin"
+    "dev.inmo.tgchat_history_saver.replier.ReplierPlugin",
+    "dev.inmo.tgchat_history_saver.reminder.ReminderPlugin"
   ],
   "common": {
     "ownerChatId": 123456789,
