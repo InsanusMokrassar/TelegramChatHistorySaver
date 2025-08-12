@@ -11,6 +11,7 @@ import dev.inmo.plagubot.plugins.commands.full
 import dev.inmo.tgbotapi.extensions.api.send.reply
 import dev.inmo.tgbotapi.extensions.behaviour_builder.BehaviourContextWithFSM
 import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
+import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommandWithArgs
 import dev.inmo.tgbotapi.libraries.resender.asMessageMetaInfos
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.commands.BotCommandScope
@@ -65,18 +66,17 @@ object ReminderPlugin : Plugin {
         remindsServices.start(koin.get())
 
         // TODO: Add full management of reminders
-        onCommand(
+        onCommandWithArgs(
             "remind",
-            requireOnlyCommandInMessage = false,
             initialFilter = { it.chat.id.toChatId() in trackingRepo.getTrackingChats() }
-        ) {
-            val subtext = it.content.text.removePrefix(
-                it.content.textSources.first().source
-            ).trim()
+        ) { it, args ->
+            val subtext = args.joinToString(" ").trim().takeIf { it.isNotBlank() }
 
-            val asKrontabTry = runCatchingLogging {
-                subtext.krontabConfig().also { it.scheduler() /* checking compilation */ }
-            }.getOrNull()
+            val asKrontabTry = subtext ?.let { subtext ->
+                runCatchingLogging {
+                    subtext.krontabConfig().also { it.scheduler() /* checking compilation */ }
+                }.getOrNull()
+            }
 
             val messageInReply = it.replyTo
 
