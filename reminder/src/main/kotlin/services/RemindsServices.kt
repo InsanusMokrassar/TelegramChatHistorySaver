@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 
 class RemindsServices(
     private val remindersRepo: RemindersRepo,
@@ -38,18 +37,17 @@ class RemindsServices(
             job = scope.launchLoggingDropExceptions {
                 while (isActive) {
                     val now = DateTime.now()
-                    val closestAction = it.mapNotNull {
-                        (it.krontabConfig.scheduler().next() ?: return@mapNotNull null) to it
-                    }.minByOrNull {
+                    val closestActions = it.mapNotNull {
+                        (it.krontabConfig.scheduler().next(now) ?: return@mapNotNull null) to it
+                    }.groupBy {
                         it.first
+                    }.minByOrNull {
+                        it.key
                     } ?: return@launchLoggingDropExceptions
-                    delay(DateTime.now() - closestAction.first)
-                    val infos = it.groupBy { it.krontabConfig.scheduler().next(now) }.filterKeys {
-                        it == closestAction.first
-                    }.values.flatten()
-                    infos.forEach {
+                    delay(closestActions.key - DateTime.now())
+                    closestActions.value.forEach {
                         runCatchingLogging {
-                            resender.resend(it.targetChatId, it.messagesInfos).ifEmpty {
+                            resender.resend(it.second.targetChatId, it.second.messagesInfos).ifEmpty {
                                 this@RemindsServices.logger.w("Unable to sent reminder for reminder info: $it")
                             }
                         }
