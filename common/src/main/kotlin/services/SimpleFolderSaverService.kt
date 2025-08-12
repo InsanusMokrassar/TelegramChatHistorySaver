@@ -20,6 +20,7 @@ import dev.inmo.tgbotapi.types.MessageThreadId
 import dev.inmo.tgbotapi.types.RawChatId
 import dev.inmo.tgbotapi.types.files.CustomNamedMediaFile
 import dev.inmo.tgbotapi.types.files.TelegramMediaFile
+import dev.inmo.tgbotapi.types.message.content.ChecklistContent
 import dev.inmo.tgbotapi.types.message.content.ContactContent
 import dev.inmo.tgbotapi.types.message.content.DiceContent
 import dev.inmo.tgbotapi.types.message.content.GameContent
@@ -149,6 +150,7 @@ class SimpleFolderSaverService (
                     is StaticLocationContent,
                     is PollContent,
                     is StoryContent,
+                    is ChecklistContent,
                     is VenueContent -> { /* do nothing */ }
                     is TextedContent -> {
                         runCatching {
@@ -193,6 +195,7 @@ class SimpleFolderSaverService (
                     is PollContent,
                     is StoryContent,
                     is TextContent,
+                    is ChecklistContent,
                     is VenueContent -> emptyList()
                 }
                 media.forEach { (messageId, media, text) ->
@@ -242,6 +245,7 @@ class SimpleFolderSaverService (
                 val specialDataFileName = when (content) {
                     is MediaContent,
                     is TextedContent -> null
+                    is ChecklistContent -> "special.checklist"
                     is ContactContent -> "special.contact"
                     is DiceContent -> "special.dice"
                     is GameContent -> "special.game"
@@ -269,6 +273,7 @@ class SimpleFolderSaverService (
                             is PollContent -> internalJson.encodeToString(PollContent.serializer(), content)
                             is StoryContent -> internalJson.encodeToString(StoryContent.serializer(), content)
                             is VenueContent -> internalJson.encodeToString(VenueContent.serializer(), content)
+                            is ChecklistContent -> internalJson.encodeToString(ChecklistContent.serializer(), content)
                             is MediaContent,
                             is TextedContent -> { /* unreachable branch */ error("Unreachable branch") }
                         }
