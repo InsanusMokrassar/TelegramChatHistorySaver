@@ -1,6 +1,9 @@
 package dev.inmo.tgchat_history_saver.reminder.services
 
+import dev.inmo.kslog.common.logger
+import dev.inmo.kslog.common.w
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
+import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.tgbotapi.libraries.resender.MessagesResender
 import dev.inmo.tgchat_history_saver.reminder.repo.RemindersRepo
@@ -34,13 +37,23 @@ class RemindsServices(
             job ?.cancel()
             job = scope.launchLoggingDropExceptions {
                 while (isActive) {
+                    val now = DateTime.now()
                     val closestAction = it.mapNotNull {
                         (it.krontabConfig.scheduler().next() ?: return@mapNotNull null) to it
                     }.minByOrNull {
                         it.first
                     } ?: return@launchLoggingDropExceptions
                     delay(DateTime.now() - closestAction.first)
-                    resender.resend(closestAction.second.targetChatId, closestAction.second.messagesInfos)
+                    val infos = it.groupBy { it.krontabConfig.scheduler().next(now) }.filterKeys {
+                        it == closestAction.first
+                    }.values.flatten()
+                    infos.forEach {
+                        runCatchingLogging {
+                            resender.resend(it.targetChatId, it.messagesInfos).ifEmpty {
+                                this@RemindsServices.logger.w("Unable to sent reminder for reminder info: $it")
+                            }
+                        }
+                    }
                 }
             }
         }
