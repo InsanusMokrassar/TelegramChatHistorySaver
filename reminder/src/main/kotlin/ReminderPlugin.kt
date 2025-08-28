@@ -1,5 +1,6 @@
 package dev.inmo.tgchat_history_saver.reminder
 
+import dev.inmo.krontab.KronScheduler
 import dev.inmo.krontab.krontabConfig
 import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.fsm.common.State
@@ -24,6 +25,7 @@ import dev.inmo.tgchat_history_saver.reminder.repo.CacheRemindersRepo
 import dev.inmo.tgchat_history_saver.reminder.repo.ExposedRemindersRepo
 import dev.inmo.tgchat_history_saver.reminder.repo.RemindersRepo
 import dev.inmo.tgchat_history_saver.reminder.services.RemindsServices
+import korlibs.time.DateFormat
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -72,9 +74,10 @@ object ReminderPlugin : Plugin {
         ) { it, args ->
             val subtext = args.joinToString(" ").trim().takeIf { it.isNotBlank() }
 
+            var scheduler: KronScheduler? = null
             val asKrontabTry = subtext ?.let { subtext ->
                 runCatchingLogging {
-                    subtext.krontabConfig().also { it.scheduler() /* checking compilation */ }
+                    subtext.krontabConfig().also { scheduler = it.scheduler() /* checking compilation */ }
                 }.getOrNull()
             }
 
@@ -92,7 +95,13 @@ object ReminderPlugin : Plugin {
                             messageInReply.asMessageMetaInfos()
                         )
                     )
-                    reply(
+                    val nextHappen = scheduler ?.next()
+                    nextHappen ?.let { _ ->
+                        reply(
+                            it,
+                            "Saved. Next occurrence ${nextHappen.toStringDefault()}. Read krontab config: ${asKrontabTry.template}"
+                        )
+                    } ?: reply(
                         it,
                         "Saved"
                     )
