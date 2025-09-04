@@ -1,19 +1,19 @@
 [versions]
 
-kotlin = "2.2.0"
+kotlin = "2.2.10"
 kotlin-serialization = "1.9.0"
 
 exposed = "0.61.0"
-plagubot = "10.7.0"
-plagubot-plugins = "0.24.5"
+plagubot = "10.8.0"
+plagubot-plugins = "0.24.6"
 
 dokka = "2.0.0"
 
-ksp = "2.2.0-2.0.2"
+ksp = "2.2.10-2.0.2"
 
 krontab = "2.7.2"
-microutils = "0.26.2"
-tgbotapi-libraries = "0.26.7"
+microutils = "0.26.3"
+tgbotapi-libraries = "0.26.8"
 
 dexcount = "4.0.0"
 junit_version = "4.12"
