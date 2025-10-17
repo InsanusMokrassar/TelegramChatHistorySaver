@@ -259,9 +259,10 @@ object CommonPlugin : Plugin {
                         replyParameters = ReplyParameters(
                             chatIdentifier = it.chat.id,
                             messageId = MessageId(i),
-                            allowSendingWithoutReply = false
+                            allowSendingWithoutReply = true
                         )
                     )
+                    delay(250L)
                     runCatchingLogging {
                         val messageInReply = (sent as? CommonMessage<TextContent>) ?.replyTo
                         when {
@@ -276,12 +277,13 @@ object CommonPlugin : Plugin {
                                         messageInReply.content
                                     )
                                 }
+                                delay(250L)
                             }
                         }
                     }
                     delete(sent)
-                    delay(1000L)
                 }
+                delay(1000L)
             }
         }
     }
