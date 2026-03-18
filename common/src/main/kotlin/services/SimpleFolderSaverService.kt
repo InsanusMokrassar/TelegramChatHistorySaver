@@ -12,7 +12,9 @@ import dev.inmo.tgbotapi.extensions.api.get.getFileAdditionalInfo
 import dev.inmo.tgbotapi.extensions.utils.textedMediaContentOrNull
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
+import dev.inmo.tgbotapi.types.ChatIdWithChannelDirectMessageThreadId
 import dev.inmo.tgbotapi.types.ChatIdWithThreadId
+import dev.inmo.tgbotapi.types.DirectMessageThreadId
 import dev.inmo.tgbotapi.types.IdChatIdentifier
 import dev.inmo.tgbotapi.types.MediaGroupId
 import dev.inmo.tgbotapi.types.MessageId
@@ -91,11 +93,19 @@ class SimpleFolderSaverService (
             threadsFiles[threadId] = it
         }
     }
+    private fun getThreadFolderWithoutLock(chatId: ChatId, threadId: DirectMessageThreadId, title: String?): File {
+        return getThreadFolderWithoutLock(
+            chatId = chatId,
+            threadId = MessageThreadId(threadId.long),
+            title = title
+        )
+    }
 
     private fun getChatOrThreadFolderWithoutLock(chatId: IdChatIdentifier): File? {
         return when (chatId) {
             is BusinessChatId -> null
             is ChatId -> getChatFolderWithoutLock(chatId, null)
+            is ChatIdWithChannelDirectMessageThreadId -> getThreadFolderWithoutLock(chatId.toChatId(), chatId.directMessageThreadId, null)
             is ChatIdWithThreadId -> getThreadFolderWithoutLock(chatId.toChatId(), chatId.threadId, null)
         }
     }

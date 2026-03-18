@@ -1,7 +1,7 @@
 package dev.inmo.tgchat_history_saver.common.repo
 
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
-import dev.inmo.micro_utils.coroutines.launchSafelyWithoutExceptions
+import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
 import dev.inmo.micro_utils.coroutines.withReadAcquire
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.tgbotapi.types.ChatId
@@ -15,7 +15,7 @@ class CacheTrackingChatsRepo(
     private var cache = emptySet<ChatId>()
 
     init {
-        scope.launchSafelyWithoutExceptions {
+        scope.launchLoggingDropExceptions {
             runCatching {
                 cache = trackingChatsRepo.getTrackingChats()
             }

@@ -4,11 +4,12 @@ import dev.inmo.micro_utils.repos.exposed.ExposedRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.RawChatId
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class ExposedTrackingChatsRepo(override val database: Database) : TrackingChatsRepo, ExposedRepo, Table(
     "tracking_repos"
@@ -28,7 +29,7 @@ class ExposedTrackingChatsRepo(override val database: Database) : TrackingChatsR
 
     override suspend fun remove(chatId: ChatId) {
         transaction(database) {
-            deleteWhere { with (it) { chatIdColumn.eq(chatId.chatId.long) } }
+            deleteWhere { chatIdColumn.eq(chatId.chatId.long) }
         }
     }
 

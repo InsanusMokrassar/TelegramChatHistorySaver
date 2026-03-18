@@ -31,6 +31,7 @@ import dev.inmo.tgbotapi.libraries.resender.MessagesResender
 import dev.inmo.tgbotapi.types.BotCommand
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
+import dev.inmo.tgbotapi.types.ChatIdWithChannelDirectMessageThreadId
 import dev.inmo.tgbotapi.types.ChatIdWithThreadId
 import dev.inmo.tgbotapi.types.MessageId
 import dev.inmo.tgbotapi.types.RawChatId
@@ -185,6 +186,11 @@ object CommonPlugin : Plugin {
                 when (chatId) {
                     is BusinessChatId -> return@withReactions null
                     is ChatId -> { /* do nothing */ }
+                    is ChatIdWithChannelDirectMessageThreadId -> {
+                        topicInfo ?.let {
+                            saverService.saveThreadTitle(chatId.toChatId(), chatId.directMessageThreadId, it.name)
+                        }
+                    }
                     is ChatIdWithThreadId -> {
                         topicInfo ?.let {
                             saverService.saveThreadTitle(chatId.toChatId(), chatId.threadId, it.name)
@@ -213,6 +219,11 @@ object CommonPlugin : Plugin {
                     is ChatId -> { /* do nothing */
                     }
 
+                    is ChatIdWithChannelDirectMessageThreadId -> {
+                        topicInfo?.let {
+                            saverService.saveThreadTitle(chatId.toChatId(), chatId.directMessageThreadId, it.name)
+                        }
+                    }
                     is ChatIdWithThreadId -> {
                         topicInfo?.let {
                             saverService.saveThreadTitle(chatId.toChatId(), chatId.threadId, it.name)
