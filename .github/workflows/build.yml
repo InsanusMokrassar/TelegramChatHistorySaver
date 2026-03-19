@@ -11,5 +11,19 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Build with Gradle
-        run: ./gradlew build
+      - name: Rewrite version
+        run: |
+          printf "\norg.gradle.jvmargs=-Xmx1g -Xms500m\nkotlin.daemon.jvmargs=-Xmx1g -Xms500m\norg.gradle.daemon=false" >> gradle.properties
+          branch="`echo "${{ github.ref }}" | grep -o "[^/]*$"`"
+          if [[ "$branch" != "master" ]]; then
+            cat gradle.properties | sed -e "s/^version=\([0-9\.]*\)/version=\1-branch_$branch-build${{ github.run_number }}/" > gradle.properties.tmp
+            rm gradle.properties
+            mv gradle.properties.tmp gradle.properties
+          fi
+      - name: Log into registry
+        uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
+        with:
+          username: ${{ secrets.DOCKER_LOGIN }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Deploy
+        run: ./gradlew build && cd ./runner && ./nonsudo_deploy.sh
