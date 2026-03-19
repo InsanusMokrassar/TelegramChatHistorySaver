@@ -5,7 +5,7 @@ kotlin-serialization = "1.10.0"
 
 exposed = "1.1.1"
 ktor = "3.4.1"
-plagubot = "11.1.0"
+plagubot = "11.1.1"
 plagubot-plugins = "0.25.0"
 
 dokka = "2.1.0"
