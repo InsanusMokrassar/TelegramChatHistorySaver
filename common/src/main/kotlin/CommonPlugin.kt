@@ -61,10 +61,13 @@ import dev.inmo.tgchat_history_saver.common.repo.KeyValueBasedChatsReactionsRepo
 import dev.inmo.tgchat_history_saver.common.repo.TrackingChatsRepo
 import dev.inmo.tgchat_history_saver.common.services.SaverService
 import dev.inmo.tgchat_history_saver.common.services.SimpleFolderSaverService
+import io.ktor.client.engine.HttpClientEngineFactory
+import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.delay
 
 object CommonPlugin : Plugin {
     override fun Module.setupDI(config: JsonObject) {
+        single<HttpClientEngineFactory<*>> { OkHttp }
         single<CommonConfig> {
             get<Json>().decodeFromJsonElement(CommonConfig.serializer(), config["common"]!!.jsonObject)
         }
