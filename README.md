@@ -24,6 +24,7 @@ A comprehensive Telegram bot for automatically saving chat history and managing 
 - `/enable_chat_tracking` - Enable message tracking for current chat (owner only)
 - `/disable_chat_tracking` - Disable message tracking for current chat (owner only)
 - `/force_resave` - Force resave of replied message
+- `/force_resave_since` - Force resave from the replied message through the message preceding the command
 - `/force_full_resave` - Force full resave of all messages in chat
 - `/remind <schedule>` - Set reminder for replied message (use `krontab` syntax)
 - `/remove_reminders` - Remove all reminders for replied message
