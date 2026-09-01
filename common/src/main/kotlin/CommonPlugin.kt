@@ -116,6 +116,11 @@ object CommonPlugin : Plugin {
             )
         }
         singleWithRandomQualifier {
+            BotCommand("force_resave_since", "Force resave since replied message").full(
+                BotCommandScope.AllGroupChats
+            )
+        }
+        singleWithRandomQualifier {
             BotCommand("force_full_resave", "Force full resave of all messages").full(
                 BotCommandScope.AllGroupChats
             )
@@ -148,6 +153,54 @@ object CommonPlugin : Plugin {
                 true -> setSavedReaction(message)
                 false -> setSaveErrorReaction(message)
                 null -> runCatchingLogging { setMessageReaction(message) }
+            }
+        }
+
+        /**
+         * Resaves messages from [firstMessageId] (inclusive) up to the message immediately before
+         * [commandMessage]. Temporary replies are used to retrieve each message by its ID.
+         */
+        suspend fun resaveMessages(commandMessage: CommonMessage<TextContent>, firstMessageId: MessageId) {
+            val topic = createForumTopic(
+                commandMessage.chat,
+                "Cache",
+                RGBColor(0x00FF00)
+            )
+            for (i in firstMessageId.long until commandMessage.messageId.long) {
+                runCatchingLogging {
+                    val sent = send(
+                        commandMessage.chat.id,
+                        "Cache",
+                        threadId = topic.messageThreadId,
+                        disableNotification = true,
+                        replyParameters = ReplyParameters(
+                            chatIdentifier = commandMessage.chat.id,
+                            messageId = MessageId(i),
+                            allowSendingWithoutReply = true
+                        )
+                    )
+                    delay(250L)
+                    runCatchingLogging {
+                        val messageInReply = (sent as? CommonMessage<TextContent>) ?.replyTo
+                        when {
+                            messageInReply == null || messageInReply !is CommonMessage<*> -> {}
+                            else -> {
+                                withReactions(messageInReply) {
+                                    saverService.save(
+                                        messageInReply.chat.id,
+                                        messageInReply.messageId,
+                                        messageInReply.date,
+                                        messageInReply.mediaGroupId,
+                                        messageInReply.content
+                                    )
+                                }
+                                delay(250L)
+                            }
+                        }
+                    }
+                    delete(sent)
+                }
+                delay(1000L)
             }
         }
 
@@ -257,48 +310,19 @@ object CommonPlugin : Plugin {
             }
         }
 
-        onCommand("force_full_resave", initialFilter = { it.fromUserMessageOrNull() ?.from ?.id ?.toChatId() == config.ownerChatId }) {
-            val topic = createForumTopic(
-                it.chat,
-                "Cache",
-                RGBColor(0x00FF00)
-            )
-            for (i in 1L until it.messageId.long) {
-                runCatchingLogging {
-                    val sent = send(
-                        it.chat.id,
-                        "Cache",
-                        threadId = topic.messageThreadId,
-                        disableNotification = true,
-                        replyParameters = ReplyParameters(
-                            chatIdentifier = it.chat.id,
-                            messageId = MessageId(i),
-                            allowSendingWithoutReply = true
-                        )
-                    )
-                    delay(250L)
-                    runCatchingLogging {
-                        val messageInReply = (sent as? CommonMessage<TextContent>) ?.replyTo
-                        when {
-                            messageInReply == null || messageInReply !is CommonMessage<*> -> {}
-                            else -> {
-                                withReactions(messageInReply) {
-                                    saverService.save(
-                                        messageInReply.chat.id,
-                                        messageInReply.messageId,
-                                        messageInReply.date,
-                                        messageInReply.mediaGroupId,
-                                        messageInReply.content
-                                    )
-                                }
-                                delay(250L)
-                            }
-                        }
-                    }
-                    delete(sent)
+        onCommand("force_resave_since", initialFilter = { it.fromUserMessageOrNull() ?.from ?.id ?.toChatId() == config.ownerChatId }) {
+            val messageInReply = it.replyTo
+            when {
+                messageInReply == null -> reply(it, "Reply some message to start resaving from it")
+                messageInReply.chat.id.toChatId() !in trackingRepo.getTrackingChats() -> reply(it, "Chat is not tracked")
+                else -> {
+                    resaveMessages(it, messageInReply.messageId)
                 }
-                delay(1000L)
             }
+        }
+
+        onCommand("force_full_resave", initialFilter = { it.fromUserMessageOrNull() ?.from ?.id ?.toChatId() == config.ownerChatId }) {
+            resaveMessages(it, MessageId(1L))
         }
     }
 }
