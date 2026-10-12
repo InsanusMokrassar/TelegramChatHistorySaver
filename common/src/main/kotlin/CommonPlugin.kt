@@ -29,6 +29,7 @@ import dev.inmo.tgbotapi.extensions.utils.updates.hasCommands
 import dev.inmo.tgbotapi.extensions.utils.updates.hasNoCommands
 import dev.inmo.tgbotapi.libraries.resender.MessagesResender
 import dev.inmo.tgbotapi.types.BotCommand
+import dev.inmo.tgbotapi.types.EphemeralChatId
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.ChatIdWithChannelDirectMessageThreadId
@@ -42,7 +43,7 @@ import dev.inmo.tgbotapi.types.chat.PublicChat
 import dev.inmo.tgbotapi.types.chat.UnknownChatType
 import dev.inmo.tgbotapi.types.commands.BotCommandScope
 import dev.inmo.tgbotapi.types.message.abstracts.AccessibleMessage
-import dev.inmo.tgbotapi.types.message.abstracts.CommonMessage
+import dev.inmo.tgbotapi.types.message.abstracts.CommonContentMessage
 import dev.inmo.tgbotapi.types.message.abstracts.Message
 import dev.inmo.tgbotapi.types.message.content.TextContent
 import dev.inmo.tgbotapi.types.toChatId
@@ -160,7 +161,7 @@ object CommonPlugin : Plugin {
          * Resaves messages from [firstMessageId] (inclusive) up to the message immediately before
          * [commandMessage]. Temporary replies are used to retrieve each message by its ID.
          */
-        suspend fun resaveMessages(commandMessage: CommonMessage<TextContent>, firstMessageId: MessageId) {
+        suspend fun resaveMessages(commandMessage: CommonContentMessage<TextContent>, firstMessageId: MessageId) {
             val topic = createForumTopic(
                 commandMessage.chat,
                 "Cache",
@@ -181,9 +182,9 @@ object CommonPlugin : Plugin {
                     )
                     delay(250L)
                     runCatchingLogging {
-                        val messageInReply = (sent as? CommonMessage<TextContent>) ?.replyTo
+                        val messageInReply = (sent as? CommonContentMessage<TextContent>) ?.replyTo
                         when {
-                            messageInReply == null || messageInReply !is CommonMessage<*> -> {}
+                            messageInReply == null || messageInReply !is CommonContentMessage<*> -> {}
                             else -> {
                                 withReactions(messageInReply) {
                                     saverService.save(
@@ -240,7 +241,8 @@ object CommonPlugin : Plugin {
 
                 saverService.saveChatTitle(chatId, title)
                 when (chatId) {
-                    is BusinessChatId -> return@withReactions null
+                    is BusinessChatId,
+                    is EphemeralChatId -> return@withReactions null
                     is ChatId -> { /* do nothing */ }
                     is ChatIdWithChannelDirectMessageThreadId -> {
                         topicInfo ?.let {
@@ -271,7 +273,8 @@ object CommonPlugin : Plugin {
 
                 saverService.saveChatTitle(chatId, title)
                 when (chatId) {
-                    is BusinessChatId -> return@withReactions null
+                    is BusinessChatId,
+                    is EphemeralChatId -> return@withReactions null
                     is ChatId -> { /* do nothing */
                     }
 
@@ -295,7 +298,7 @@ object CommonPlugin : Plugin {
             when {
                 messageInReply == null -> reply(it, "Reply some message to force its saving")
                 messageInReply.chat.id.toChatId() !in trackingRepo.getTrackingChats() -> reply(it, "Chat is not tracked")
-                messageInReply !is CommonMessage<*> -> reply(it, "Reply on message with content")
+                messageInReply !is CommonContentMessage<*> -> reply(it, "Reply on message with content")
                 else -> {
                     withReactions(messageInReply) {
                         saverService.save(

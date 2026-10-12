@@ -1,25 +1,25 @@
 [versions]
 
-kotlin = "2.3.20"
-kotlin-serialization = "1.10.0"
+kotlin = "2.4.21"
+kotlin-serialization = "1.11.0"
 
-exposed = "1.1.1"
-ktor = "3.4.1"
-plagubot = "11.1.1"
-plagubot-plugins = "0.25.0"
+exposed = "1.5.1"
+ktor = "3.6.0"
+plagubot = "14.0.0"
+plagubot-plugins = "0.29.0"
 
-dokka = "2.1.0"
+dokka = "2.2.0"
 
-ksp = "2.3.6"
+ksp = "2.3.12"
 
-krontab = "2.8.0"
-microutils = "0.29.1"
-tgbotapi-libraries = "0.29.0"
+krontab = "3.1.0"
+microutils = "0.32.0"
+tgbotapi-libraries = "0.33.0"
 
 dexcount = "4.0.0"
-junit_version = "4.12"
-test_ext_junit_version = "1.2.1"
-espresso_core = "3.6.1"
+junit_version = "4.13.2"
+test_ext_junit_version = "1.3.0"
+espresso_core = "3.7.0"
 
 [libraries]
 

@@ -10,6 +10,7 @@ import dev.inmo.tgbotapi.bot.TelegramBot
 import dev.inmo.tgbotapi.extensions.api.files.downloadFileStream
 import dev.inmo.tgbotapi.extensions.api.get.getFileAdditionalInfo
 import dev.inmo.tgbotapi.extensions.utils.textedMediaContentOrNull
+import dev.inmo.tgbotapi.types.EphemeralChatId
 import dev.inmo.tgbotapi.types.BusinessChatId
 import dev.inmo.tgbotapi.types.ChatId
 import dev.inmo.tgbotapi.types.ChatIdWithChannelDirectMessageThreadId
@@ -34,6 +35,7 @@ import dev.inmo.tgbotapi.types.message.content.MediaContent
 import dev.inmo.tgbotapi.types.message.content.MediaGroupContent
 import dev.inmo.tgbotapi.types.message.content.MessageContent
 import dev.inmo.tgbotapi.types.message.content.PaidMediaInfoContent
+import dev.inmo.tgbotapi.types.message.content.RichMessageContent
 import dev.inmo.tgbotapi.types.message.content.PollContent
 import dev.inmo.tgbotapi.types.message.content.StaticLocationContent
 import dev.inmo.tgbotapi.types.message.content.StoryContent
@@ -103,7 +105,8 @@ class SimpleFolderSaverService (
 
     private fun getChatOrThreadFolderWithoutLock(chatId: IdChatIdentifier): File? {
         return when (chatId) {
-            is BusinessChatId -> null
+            is BusinessChatId,
+            is EphemeralChatId -> null
             is ChatId -> getChatFolderWithoutLock(chatId, null)
             is ChatIdWithChannelDirectMessageThreadId -> getThreadFolderWithoutLock(chatId.toChatId(), chatId.directMessageThreadId, null)
             is ChatIdWithThreadId -> getThreadFolderWithoutLock(chatId.toChatId(), chatId.threadId, null)
@@ -161,6 +164,7 @@ class SimpleFolderSaverService (
                     is PollContent,
                     is StoryContent,
                     is ChecklistContent,
+                    is RichMessageContent,
                     is VenueContent -> { /* do nothing */ }
                     is TextedContent -> {
                         runCatching {
@@ -206,6 +210,7 @@ class SimpleFolderSaverService (
                     is StoryContent,
                     is TextContent,
                     is ChecklistContent,
+                    is RichMessageContent,
                     is VenueContent -> emptyList()
                 }
                 media.forEach { (messageId, media, text) ->
@@ -255,6 +260,7 @@ class SimpleFolderSaverService (
                 val specialDataFileName = when (content) {
                     is MediaContent,
                     is TextedContent -> null
+                    is RichMessageContent -> "special.richmessage"
                     is ChecklistContent -> "special.checklist"
                     is ContactContent -> "special.contact"
                     is DiceContent -> "special.dice"
@@ -272,6 +278,7 @@ class SimpleFolderSaverService (
                     runCatchingLogging {
                         val specialFile = File(messageFolder, specialDataFileName)
                         val stringifiedContent = when (content) {
+                            is RichMessageContent -> internalJson.encodeToString(RichMessageContent.serializer(), content)
                             is ContactContent -> internalJson.encodeToString(ContactContent.serializer(), content)
                             is DiceContent -> internalJson.encodeToString(DiceContent.serializer(), content)
                             is GameContent -> internalJson.encodeToString(GameContent.serializer(), content)
@@ -308,6 +315,7 @@ class SimpleFolderSaverService (
     }
 
     override suspend fun saveChatTitle(chatId: IdChatIdentifier, title: String) {
+        if (chatId is EphemeralChatId) return
         mutex.withLock {
             val currentChatFile = getChatFolderWithoutLock(chatId, null)
             val newChatFile = File(currentChatFile.parentFile, "${title}_${chatId.chatId.long}")
